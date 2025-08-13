@@ -1,0 +1,16 @@
+<?php
+
+namespace App\Http\Resources\__DOMAIN__;
+
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class __MODEL__Resource extends JsonResource
+{
+    /** @return array<string,mixed> */
+    public function toArray($request): array
+    {
+        return [
+            __FIELDS__
+        ];
+    }
+}
