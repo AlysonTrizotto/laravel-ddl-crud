@@ -1,0 +1,22 @@
+<?php
+
+namespace Database\Factories\__DOMAIN__;
+
+use __NS_MODEL__;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
+
+/**
+ * @extends Factory<__NS_MODEL__>
+ */
+class __MODEL__Factory extends Factory
+{
+    protected $model = \__NS_MODEL__::class;
+
+    public function definition(): array
+    {
+        return [
+            __ATTRS__
+        ];
+    }
+}
