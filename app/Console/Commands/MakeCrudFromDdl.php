@@ -288,6 +288,10 @@ class MakeCrudFromDdl extends Command
         $method = null; $args = '';
         if (str_starts_with($type, 'uuid')) {
             $method = 'uuid';
+        } elseif ($type === 'serial') {
+            $method = 'increments';
+        } elseif ($type === 'bigserial') {
+            $method = 'bigIncrements';
         } elseif (preg_match('/^char\((\d+)\)/', $type, $cm)) {
             // If looks like UUID field and len is 36, use uuid(); else string with length
             if ($cm[1] == '36' && str_contains($name, 'uuid')) {
@@ -331,6 +335,11 @@ class MakeCrudFromDdl extends Command
 
         if ($method === 'uuid') {
             $code = "\$table->uuid('{$name}')";
+        } elseif ($method === 'increments') {
+            // increments already sets primary key and auto-increment integer
+            return "\$table->increments('{$name}');";
+        } elseif ($method === 'bigIncrements') {
+            return "\$table->bigIncrements('{$name}');";
         } elseif ($method === 'json') {
             $code = "\$table->json('{$name}')";
         } elseif ($method === 'text') {
@@ -353,7 +362,7 @@ class MakeCrudFromDdl extends Command
         }
 
         // Primary key detection
-        if (str_contains($raw, 'primary key')) {
+        if (str_contains($raw, 'primary key') && !in_array($method, ['increments','bigIncrements'])) {
             // If PK and uuid, we can set as primary
             if ($method === 'uuid') {
                 $code .= "->primary()";
@@ -842,6 +851,25 @@ PHP;
         ], [
             $nsModel, $modelClass, $attributes, $domain
         ], $template);
+
+        // Normalize namespace for custom stubs that might not include the domain segment
+        // If the stub declares only `namespace Database\Factories;`, force the domain: `namespace Database\Factories\\{Domain};`
+        if (!str_contains($content, 'namespace Database\\Factories\\' . $domain)) {
+            $content = preg_replace(
+                '/^namespace\s+Database\\\\Factories;$/m',
+                'namespace Database\\Factories\\' . $domain . ';',
+                $content
+            );
+        }
+
+        // Ensure the $model property uses a fully-qualified class (prepend backslash when missing)
+        // Converts: protected $model = App\\Foo\\Bar::class; -> protected $model = \App\\Foo\\Bar::class;
+        $content = preg_replace(
+            '/(protected\s+\$model\s*=\s*)(App\\\\[A-Za-z0-9_\\\\]+)(::class;)/',
+            '$1\\$2$3',
+            $content
+        );
+
         File::put($path, $content);
         $this->info('Factory criada: ' . $path);
     }
