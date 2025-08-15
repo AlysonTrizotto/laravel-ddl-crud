@@ -16,6 +16,7 @@ class DdlCrudServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \AlysonTrizotto\DdlCrud\Console\Commands\MakeCrudFromDdl::class,
+                \AlysonTrizotto\DdlCrud\Console\Commands\RemoveCrudRoutes::class,
             ]);
         }
 

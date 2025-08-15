@@ -15,6 +15,7 @@ use AlysonTrizotto\DdlCrud\Generators\FeatureTestGenerator;
 use AlysonTrizotto\DdlCrud\Generators\UnitTestGenerator;
 use AlysonTrizotto\DdlCrud\Generators\MigrationGenerator;
 use AlysonTrizotto\DdlCrud\Support\DdlParser;
+use AlysonTrizotto\DdlCrud\Generators\RoutesGenerator;
 
 class MakeCrudFromDdl extends Command
 {
@@ -56,7 +57,15 @@ class MakeCrudFromDdl extends Command
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'make:crud-from-ddl {domain?} {ddl?}';
+    protected $signature = 'make:crud-from-ddl {domain?} {ddl?}
+        {--no-routes}
+        {--route-prefix=}
+        {--route-name=}
+        {--middleware=}
+        {--name-prefix=}
+        {--only=}
+        {--except=}
+        {--nested=}';
 
     /**
      * The console command description.
@@ -134,6 +143,30 @@ class MakeCrudFromDdl extends Command
         // 6) Controller
         $this->makeController($domain, $modelClass);
 
+        // 6.1) API Routes (idempotent append into routes/api.php)
+        if (!$this->option('no-routes')) {
+            $prefix = (string) ($this->option('route-prefix') ?? '');
+            $slugOverride = $this->option('route-name') ? (string) $this->option('route-name') : null;
+            $middlewares = null;
+            if ($this->option('middleware')) {
+                $mwRaw = (string) $this->option('middleware');
+                // Split only by '|' or ';' to avoid breaking params like throttle:60,1
+                $parts = preg_split('/[|;]+/', $mwRaw) ?: [];
+                $parts = array_values(array_filter(array_map('trim', $parts)));
+                $middlewares = !empty($parts) ? $parts : [trim($mwRaw)];
+            }
+            $namePrefix = $this->option('name-prefix') ? (string) $this->option('name-prefix') : null;
+            $only = $this->option('only')
+                ? array_values(array_filter(array_map('trim', explode(',', (string) $this->option('only')))))
+                : null;
+            $except = $this->option('except')
+                ? array_values(array_filter(array_map('trim', explode(',', (string) $this->option('except')))))
+                : null;
+
+            $nested = $this->option('nested') ? (string) $this->option('nested') : null;
+            $this->appendApiRoute($domain, $modelClass, $table, $prefix, $slugOverride, $middlewares, $namePrefix, $only, $except, $nested);
+        }
+
         // 7) Factory
         $this->makeFactory($domain, $modelClass, $tableDef);
 
@@ -203,5 +236,33 @@ class MakeCrudFromDdl extends Command
         $featurePath = (new FeatureTestGenerator())->generate($domain, $modelClass, compact('table','tableDef'));
         $this->info('Unit tests criados em: ' . dirname($unitPath));
         $this->info('Feature tests criados em: ' . dirname($featurePath));
+    }
+
+    protected function appendApiRoute(
+        string $domain,
+        string $modelClass,
+        string $table,
+        string $prefix = '',
+        ?string $slugOverride = null,
+        ?array $middlewares = null,
+        ?string $namePrefix = null,
+        ?array $only = null,
+        ?array $except = null,
+        ?string $nestedPath = null
+    ): void
+    {
+        $path = (new RoutesGenerator())->appendApiRoute(
+            $domain,
+            $modelClass,
+            $table,
+            $prefix !== '' ? $prefix : null,
+            $slugOverride,
+            $middlewares,
+            $namePrefix,
+            $only,
+            $except,
+            $nestedPath
+        );
+        $this->info('API route adicionada em: ' . $path);
     }
 }

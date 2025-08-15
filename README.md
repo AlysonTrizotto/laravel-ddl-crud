@@ -12,6 +12,7 @@ Gere um CRUD completo (Migration, Model, Service, Requests, Resource, Controller
 - __Stubs sobrescrevíveis__: personalize a estrutura gerada publicando os stubs
 - __Heurísticas úteis__: mapeamento de tipos, inferência de `fillable`, `casts`, validações básicas
 - __Separação de responsabilidades__: parsing, geração e escrita extraídos para classes dedicadas
+- __Rotas automáticas__: gera rotas REST em `routes/api.php` com marcadores por domínio e idempotência (não duplica nem apaga rotas já existentes)
 
 ## Sumário
 - [Pré-requisitos](#pré-requisitos)
@@ -83,6 +84,17 @@ Prompts:
 php artisan make:crud-from-ddl Checklist D:/Alyson/ddl/checklist.sql
 ```
 
+Opções úteis:
+
+- `--no-routes` — não gerar/adicionar rotas no `routes/api.php`.
+- `--route-prefix=...` — adiciona `Route::prefix('...')->group(...)` envolvendo as rotas geradas (ex.: `--route-prefix=v1`).
+- `--route-name=...` — define/override o slug da rota gerada (ex.: `--route-name=annotations`).
+- `--middleware=a|b|c` — aplica middlewares na rota/agrupamento (ex.: `--middleware=auth:sanctum|throttle:60,1`).
+- `--name-prefix=...` — prefixo de nomes de rotas (ex.: `--name-prefix=checklist.` → `checklist.photo-annotations.index`).
+- `--only=a,b` — limita métodos do resource (ex.: `--only=index,show`).
+- `--except=a,b` — exclui métodos do resource (ex.: `--except=destroy`).
+- `--nested=...` — slug aninhado (ex.: `--nested=orders/{order}/items`).
+
 ## Exemplo de DDL suportada (Postgres-like ou MySQL simples)
 ```sql
 CREATE TABLE checklist.photo_annotations (
@@ -146,27 +158,73 @@ Arquivos esperados (exemplo `Checklist` + tabela `photo_annotations`):
 - `app/Http/Controllers/API/Checklist/PhotoAnnotationController.php`
 
 ## Rotas
-O gerador cria apenas as classes. Registre as rotas manualmente em `routes/api.php` e garanta que o arquivo seja carregado pelo Laravel 12:
+As rotas REST são adicionadas automaticamente ao arquivo `routes/api.php` com marcadores por domínio e lógica idempotente (não duplica rotas existentes e não apaga nada fora dos blocos do pacote).
+
+Exemplo do que será inserido:
 
 ```php
-use App\Http\Controllers\API\Checklist\PhotoAnnotationController;
+use Illuminate\Support\Facades\Route;
 
-Route::apiResource('photo-annotations', PhotoAnnotationController::class);
+// BEGIN: DDL-CRUD routes [Checklist]
+    Route::apiResource('photo-annotations', \App\Http\Controllers\API\Checklist\PhotoAnnotationController::class);
+// END: DDL-CRUD routes [Checklist]
 ```
 
-No Laravel 12, certifique-se de que `bootstrap/app.php` está carregando `routes/api.php`:
+Com `--route-prefix=v1`:
 
 ```php
-return Application::configure(basePath: dirname(__DIR__))
-    ->withRouting(
-        api: __DIR__.'/../routes/api.php',
-        web: __DIR__.'/../routes/web.php',
-        commands: __DIR__.'/../routes/console.php',
-        health: '/up',
-    )
-    // ...
-    ->create();
+// BEGIN: DDL-CRUD routes [Checklist]
+    Route::prefix('v1')->group(function () {
+        Route::apiResource('photo-annotations', \App\Http\Controllers\API\Checklist\PhotoAnnotationController::class);
+    });
+// END: DDL-CRUD routes [Checklist]
 ```
+
+Notas:
+
+- O slug da rota é derivado do nome da tabela (`photo_annotations` → `photo-annotations`).
+- Se o arquivo `routes/api.php` não existir, ele será criado.
+- Use `--no-routes` para pular a etapa de rotas.
+
+### Exemplos de flags de rota
+
+- Somente leitura com prefixo e middlewares:
+
+```bash
+php artisan make:crud-from-ddl Checklist ddl.sql \
+  --route-prefix=v1 \
+  --middleware=auth:sanctum|throttle:60,1 \
+  --only=index,show
+```
+
+- Nome de rota prefixado e slug customizado:
+
+```bash
+php artisan make:crud-from-ddl Checklist ddl.sql \
+  --name-prefix=checklist. \
+  --route-name=annotations
+```
+
+- Rota aninhada:
+
+```bash
+php artisan make:crud-from-ddl Orders ddl.sql --nested=orders/{order}/items
+```
+
+Observações:
+
+- Para `--middleware`, separe múltiplos middlewares com `|` ou `;` (não use vírgulas, pois podem fazer parte de parâmetros como em `throttle:60,1`).
+- Para `--nested`, informe o slug final desejado (com placeholders, se necessário). O gerador usa esse slug diretamente no `apiResource`.
+
+### Remoção de rotas (segura por domínio)
+
+Para remover o bloco de rotas gerado para um domínio (entre `BEGIN/END`), use:
+
+```bash
+php artisan ddl-crud:routes:remove Checklist
+```
+
+Esse comando remove apenas o bloco do domínio informado, preservando o restante de `routes/api.php`.
 
 ## Customização
 Edite os stubs em `stubs/cascade/` para moldar o padrão do seu projeto:
