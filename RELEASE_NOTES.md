@@ -50,3 +50,4 @@
 ### Notes
 - O gerador mantém SRP com generators dedicados (Model, Request, Migration, Controller, Service, Factory, Tests) e `Support\DdlParser` para parsing do DDL.
 - Continuidade: centralizar heurísticas/constantes compartilhadas entre generators e ampliar cobertura de testes E2E.
+
