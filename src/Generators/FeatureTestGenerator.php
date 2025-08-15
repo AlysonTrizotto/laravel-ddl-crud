@@ -15,7 +15,25 @@ class FeatureTestGenerator implements GeneratorInterface
     {
         $table = $context['table'] ?? Str::snake(Str::pluralStudly($modelClass));
         $tableDef = $context['tableDef'] ?? [];
-        $routeBase = Str::of($domain)->lower() . '/' . Str::kebab(Str::pluralStudly($modelClass));
+
+        // Build route base using same logic as RoutesGenerator
+        $prefix = $context['route_prefix'] ?? null; // e.g., 'v1' or 'customer' or 'v1/customer'
+        $slugOverride = $context['route_slug_override'] ?? null; // from --route-name
+        $nestedPath = $context['nested'] ?? null; // e.g., 'customers/{customer}/orders'
+
+        $slug = $nestedPath ?: ($slugOverride ?: Str::of($table)
+            ->replace('\\', '/')
+            ->replace(' ', '-')
+            ->replace('_', '-')
+            ->lower()
+            ->value());
+        if (empty($slug)) {
+            $slug = Str::kebab(Str::pluralStudly($modelClass));
+        }
+        $routeBase = $slug;
+        if ($prefix !== null && $prefix !== '') {
+            $routeBase = trim($prefix, '/') . '/' . ltrim($slug, '/');
+        }
 
         $dir = base_path('tests/Feature/' . $domain);
         File::ensureDirectoryExists($dir);
