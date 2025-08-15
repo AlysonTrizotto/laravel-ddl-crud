@@ -102,7 +102,7 @@ class RoutesGenerator
 
         // If a domain block exists, insert before END marker
         if (Str::contains($contents, $begin) && Str::contains($contents, $end)) {
-            $contents = preg_replace(
+            $contents = preg_replace_callback(
                 "#".preg_quote($begin, '#')."(.*?)".preg_quote($end, '#')."#s",
                 function ($m) use ($begin, $end, $routeLine) {
                     $blockBody = rtrim($m[1]);
