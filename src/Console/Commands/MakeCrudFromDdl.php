@@ -233,7 +233,20 @@ class MakeCrudFromDdl extends Command
     {
         // Delegate to Unit and Feature test generators
         $unitPath = (new UnitTestGenerator())->generate($domain, $modelClass, compact('table','tableDef'));
-        $featurePath = (new FeatureTestGenerator())->generate($domain, $modelClass, compact('table','tableDef'));
+
+        // Route-related options to align tests with generated routes
+        $prefix = (string) ($this->option('route-prefix') ?? '');
+        $slugOverride = $this->option('route-name') ? (string) $this->option('route-name') : null;
+        $nested = $this->option('nested') ? (string) $this->option('nested') : null;
+
+        $featureCtx = [
+            'table' => $table,
+            'tableDef' => $tableDef,
+            'route_prefix' => $prefix !== '' ? $prefix : null,
+            'route_slug_override' => $slugOverride,
+            'nested' => $nested,
+        ];
+        $featurePath = (new FeatureTestGenerator())->generate($domain, $modelClass, $featureCtx);
         $this->info('Unit tests criados em: ' . dirname($unitPath));
         $this->info('Feature tests criados em: ' . dirname($featurePath));
     }

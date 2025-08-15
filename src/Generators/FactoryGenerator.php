@@ -34,7 +34,13 @@ class FactoryGenerator implements GeneratorInterface
             if ($name !== 'id' && str_ends_with($name, '_id')) {
                 $relatedModel = Str::studly(Str::singular(substr($name, 0, -3)));
                 $relatedNs = "App\\Models\\{$domain}\\{$relatedModel}";
-                $attrs[] = "'{$name}' => \\{$relatedNs}::factory()";
+                // Check if related model class file exists; if not, fallback to numeric id
+                $relatedPath = base_path('app/Models/' . $domain . '/' . $relatedModel . '.php');
+                if (File::exists($relatedPath)) {
+                    $attrs[] = "'{$name}' => \\{$relatedNs}::factory()";
+                } else {
+                    $attrs[] = "'{$name}' => fake()->numberBetween(1, 100000)";
+                }
                 continue;
             }
             if (str_starts_with($type, 'uuid')) {
